@@ -24,13 +24,15 @@ if (!roomId) {
 let localTracks = []
 let remoteUsers = {}
 
+let localScreenTracks;
+let sharingScreen = false;
+
 //Funcion que inicia una reunion creando un objeto Cliente que contiene el codec del video, webrtc y los demas parametros para crear una sala
 let joinRoomInit = async () => {
     client = AgoraRTC.createClient({mode: 'rtc', codec:'vp8'})
     await client.join(APP_ID, roomId, token, uid)
 
     client.on('user-published'. handleUserPublished)
-    client.on('user-left'. handleUserLeft)
 
     joinStream()
 }
@@ -50,11 +52,11 @@ let joinStream = async () => {
     document.getElementById(`user-container-${uid}`).addEventListener('click', expandVideoFrame)
 
     localTracks[1].play(`user-${uid}`)
-    
+
     await client.publish([localTracks[0], localTracks[1]])
 }
 
-//Funcion que agrega nuevos participantes a la reunion
+
 let handleUserPublished = async (user, mediaType) => {
     user = remoteUsers[user.uid]
 
@@ -64,8 +66,8 @@ let handleUserPublished = async (user, mediaType) => {
 
     if (player === null) {
         player = `<div class="video__container" id="user-container-${user.uid}">
-                        <div class="video-player" id="user-${user.uid}"><div/>
-                </div>`
+                <div class="video-player" id="user-${user.uid}"><div/>
+            </div>`
         document.getElementById('streams__container').insertAdjacentHTML('beforeend', player)
         document.getElementById(`user-container-${user.uid}`).addEventListener('click', expandVideoFrame)
     }
@@ -85,52 +87,5 @@ let handleUserPublished = async (user, mediaType) => {
     }
 }
 
-//Funcion que elimina a los usuarios que dejan la sala
-let handleUserLeft = async (user)=>{
-    delete remoteUsers[user.uid]
-    document.getElementById(`user-container-${user.uid}`).remove()
-
-    if (userIdInDisplayFrame === `user-container-${user.uid}`) {
-        displayFrame.style.display = null
-
-        let videoFrames = document.getElementsByClassName('video__container')
-
-        for(let i=0; videoFrames.length > i; i++){
-            videoFrames[i].style.height = '300px'
-            videoFrames[i].style.width = '300px'
-        }
-    }
-}
-
-//Funcion que escucha el evento de activar y desactivar cam
-let toggleCamera = async (e) => {
-    let button = e.currentTarget
-
-    if (localTracks[1].muted) {
-        await localTracks[1].setMuted(false)
-        button.classList.add('active')
-    }else{
-        await localTracks[1].setMuted(true)
-        button.classList.remove('active')
-    }
-
-}
-
-//Funcion que escucha el evento de activar y desactivar mic
-let toggleMic = async (e) => {
-    let button = e.currentTarget
-
-    if (localTracks[0].muted) {
-        await localTracks[0].setMuted(false)
-        button.classList.add('active')
-    }else{
-        await localTracks[0].setMuted(true)
-        button.classList.remove('active')
-    }
-
-}
-
-document.getElementById('camera-btn').addEventListener('click', toggleCamera)
-document.getElementById('mic-btn').addEventListener('click', toggleMic)
 
 joinRoomInit()
