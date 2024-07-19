@@ -12,6 +12,10 @@ let token = null
 //Variable que permite el inicio de sesion (cliente) para tener acceso a enviar mensajes (canal)
 let client;
 
+//Variables para el chat
+let rtmClient
+let channel
+
 //Variables que recuperan desde la url el id que colocamos para crear la sala, Ej: room.html?room=123
 let queryString = window.location.search
 let urlParams = new URLSearchParams(queryString)
@@ -21,19 +25,51 @@ if (!roomId) {
     roomId = 'main'
 }
 
+//Almacena el valor del nombre que coloca el user
+let displayName = sessionStorage.getItem('display_name')
+//Validando que el user coloque obiglatoriamente un nombre
+if (!displayName) {
+    window.location = 'lobby.html'
+}
+
+//Variables para almacenar los usuarios que se agg y data del micro y cam
 let localTracks = []
 let remoteUsers = {}
-
+ 
 let localScreenTracks;
 let sharingScreen = false;
 
-//Funcion que inicia una reunion creando un objeto Cliente que contiene el codec del video, webrtc y los demas parametros para crear una sala
+//Funcion que inicia una reunion creando un objeto Cliente
 let joinRoomInit = async () => {
+    //Creamos una instancia AgoraRTM para mensajeria
+    rtmClient = await AgoraRTM.createInstance(APP_ID)
+    //Nos unimos al mismo uid con la funcion login
+    await rtmClient.login({uid, token})
+
+    //actualizando los atributos de un usuario tomandolo desde displayName
+    await rtmClient.addOrUpdateLocalUserAttributes({'name':displayName})
+
+    //creamos un canal para mensajeria en el roomid especificado 
+    channel = await rtmClient.createChannel(roomId)
+    //nos unimos al canal especificado
+    await channel.join()
+    
+    channel.on('MemberJoined', handleMemberJoined)
+    channel.on('MemberLeft', handleMemberLeft)
+    channel.on('ChannelMessage', handleChannelMessage)
+
+    getMembers()
+    addBotMessageToDom(`Bienvenido a la sala ${displayName}`)
+    
+    //Inicializando un cliente rtc en Agora API especificando el encoding para el video
     client = AgoraRTC.createClient({mode: 'rtc', codec:'vp8'})
+    //Pasamos los parametros para crear y unirse a un canal especificado
     await client.join(APP_ID, roomId, token, uid)
 
-    client.on('user-published'. handleUserPublished)
+    client.on('user-published', handleUserPublished)
+    client.on('user-left', handleUserLeft)
 
+    //Llamamos a la funcion que define el audio y el video con sus especificaciones
     joinStream()
 }
 
@@ -87,5 +123,100 @@ let handleUserPublished = async (user, mediaType) => {
     }
 }
 
+//Funcion que elimina a los usuarios que dejan la sala
+let handleUserLeft = async (user)=>{
+    delete remoteUsers[user.uid]
+    document.getElementById(`user-container-${user.uid}`).remove()
+
+    if (userIdInDisplayFrame === `user-container-${user.uid}`) {
+        displayFrame.style.display = null
+
+        let videoFrames = document.getElementsByClassName('video__container')
+
+        for(let i=0; videoFrames.length > i; i++){
+            videoFrames[i].style.height = '300px'
+            videoFrames[i].style.width = '300px'
+        }
+    }
+}
+
+//Funcion que escucha el evento de activar y desactivar cam
+let toggleCamera = async (e) => {
+    let button = e.currentTarget
+
+    if (localTracks[1].muted) {
+        await localTracks[1].setMuted(false)
+        button.classList.add('active')
+    }else{
+        await localTracks[1].setMuted(true)
+        button.classList.remove('active')
+    }
+
+}
+
+//Funcion que escucha el evento de activar y desactivar mic
+let toggleMic = async (e) => {
+    let button = e.currentTarget
+
+    if (localTracks[0].muted) {
+        await localTracks[0].setMuted(false)
+        button.classList.add('active')
+    }else{
+        await localTracks[0].setMuted(true)
+        button.classList.remove('active')
+    }
+
+}
+
+let toggleScreen = async (e) => {
+    let screenButton = e.currentTarget
+    let cameraButton = document.getElementById('camera-btn') 
+
+    if(!sharingScreen){
+        sharingScreen = true
+
+        screenButton.classList.add('active')
+        cameraButton.classList.remove('active')
+        cameraButton.style.display = 'none'
+    
+        localScreenTracks = await AgoraRTC.createScreenVideoTrack()
+        
+        document.getElementById(`user-container-${uid}`).remove()
+        displayFrame.style.display = 'block'
+
+        let player = `<div class="video__container" id="user-container-${uid}">
+                <div class="video-player" id="user-${uid}"><div/>
+            </div>`
+        
+        displayFrame.insertAdjacentHTML('beforeend', player)  
+        document.getElementById(`user-container-${uid}`).addEventListener('click', expandVideoFrame)
+        
+        userIdInDisplayFrame = `user-container-${uid}`
+        localScreenTracks.play(`user-${uid}`)
+
+        await client.unpublish([localTracks[1]])
+        await client.publish([localScreenTracks])
+
+
+        let videoFrames = document.getElementsByClassName('video__container')
+        for(let i = 0; videoFrames.length > i; i++){
+            if(videoFrames[i].id != userIdInDisplayFrame){
+              videoFrames[i].style.height = '100px'
+              videoFrames[i].style.width = '100px'
+            }
+          }
+    }  
+    else{
+        sharingScreen = false
+        cameraButton.style.display = 'block'
+        document.getElementById(`user-container-${uid}`).remove()
+        await client.unpublish([localScreenTracks])
+
+        switchToCamera()
+    }
+}
+document.getElementById('camera-btn').addEventListener('click', toggleCamera)
+document.getElementById('mic-btn').addEventListener('click', toggleMic)
+document.getElementById('screen-btn').addEventListener('click', toggleScreen)
 
 joinRoomInit()
