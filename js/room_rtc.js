@@ -20,10 +20,10 @@ if(!roomId){
     roomId = 'main'
 }
 
-let displayName = sessionStorage.getItem('display_name')
-if(!displayName){
-    window.location = 'lobby.html'
-}
+// let displayName = sessionStorage.getItem('display_name')
+// if(!displayName){
+//     window.location = 'lobby.html'
+// }
 
 let localTracks = []
 let remoteUsers = {}
@@ -32,30 +32,33 @@ let localScreenTracks;
 let sharingScreen = false;
 
 let joinRoomInit = async () => {
-    rtmClient = await AgoraRTM.createInstance(APP_ID)
-    await rtmClient.login({uid,token})
 
-    await rtmClient.addOrUpdateLocalUserAttributes({'name':displayName})
+    // rtmClient = await AgoraRTM.createInstance(APP_ID)
+    // await rtmClient.login({uid, token})
 
-    channel = await rtmClient.createChannel(roomId)
-    await channel.join()
+    // await rtmClient.addOrUpdateLocalUserAttributes({'name':displayName})
 
-    channel.on('MemberJoined', handleMemberJoined)
-    channel.on('MemberLeft', handleMemberLeft)
-    channel.on('ChannelMessage', handleChannelMessage)
+    // channel = await rtmClient.createChannel(roomId)
+    // await channel.join()
 
-    getMembers()
-    addBotMessageToDom(`Welcome to the room ${displayName}! 👋`)
+    // channel.on('MemberJoined', handleMemberJoined)
+    // channel.on('MemberLeft', handleMemberLeft)
+    // channel.on('ChannelMessage', handleChannelMessage)
+    
+    // getMembers()
+    // addBotMessageToDom(`Welcome to the room ${displayName}! 👋`)
+
 
     client = AgoraRTC.createClient({mode:'rtc', codec:'vp8'})
     await client.join(APP_ID, roomId, token, uid)
 
     client.on('user-published', handleUserPublished)
     client.on('user-left', handleUserLeft)
+    joinStream()
 }
 
 let joinStream = async () => {
-    document.getElementById('join-btn').style.display = 'none'
+    // document.getElementById('join-btn').style.display = 'none'
     document.getElementsByClassName('stream__actions')[0].style.display = 'flex'
 
     localTracks = await AgoraRTC.createMicrophoneAndCameraTracks({}, {encoderConfig:{
@@ -217,7 +220,7 @@ let toggleScreen = async (e) => {
 let leaveStream = async (e) => {
     e.preventDefault()
 
-    document.getElementById('join-btn').style.display = 'block'
+    // document.getElementById('join-btn').style.display = 'block'
     document.getElementsByClassName('stream__actions')[0].style.display = 'none'
 
     for(let i = 0; localTracks.length > i; i++){
@@ -250,7 +253,7 @@ let leaveStream = async (e) => {
 document.getElementById('camera-btn').addEventListener('click', toggleCamera)
 document.getElementById('mic-btn').addEventListener('click', toggleMic)
 document.getElementById('screen-btn').addEventListener('click', toggleScreen)
-document.getElementById('join-btn').addEventListener('click', joinStream)
+// document.getElementById('join-btn').addEventListener('click', joinStream)
 document.getElementById('leave-btn').addEventListener('click', leaveStream)
 
 
