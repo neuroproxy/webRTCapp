@@ -49,7 +49,7 @@ let joinRoomInit = async () => {
     // addBotMessageToDom(`Welcome to the room ${displayName}! 👋`)
 
 
-    client = AgoraRTC.createClient({mode:'rtc', codec:'vp8'})
+    client = AgoraRTC.createClient({mode:'rtc', codec:'h264'})
     await client.join(APP_ID, roomId, token, uid)
 
     client.on('user-published', handleUserPublished)
